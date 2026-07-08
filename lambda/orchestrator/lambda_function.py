@@ -791,9 +791,16 @@ def revise_draft(s3_key, user_id, revision_request):
 # 스펙에 없던 신규 도구 — 대시보드 화면의 정적 목업 데이터를 실집계로 대체
 # ═══════════════════════════════════════════════════════════════
 
+# 개발 중 QA/스모크테스트로 생성된 user_id — 대시보드 집계에서 제외 (실사용자 데이터가 아님)
+EXCLUDED_TEST_USER_IDS = {
+    "6478a488-0091-7065-8a33-ee4abef83431",  # testuser@example.com, 개발 QA 계정
+    "smoke-test-history-user",  # 매칭이력 저장 로직 스모크테스트용 가짜 user_id
+}
+
+
 def get_dashboard_stats():
     """
-    전체 사용자의 매칭이력을 집계해 대시보드 지표를 산출.
+    전체 사용자의 매칭이력을 집계해 대시보드 지표를 산출 (QA 계정 제외).
     현재 데이터 규모가 작아 Scan을 사용 (규모가 커지면 별도 집계 테이블/스트림 방식 검토 필요).
     """
     items = []
@@ -802,6 +809,8 @@ def get_dashboard_stats():
     while "LastEvaluatedKey" in resp:
         resp = history_table.scan(ExclusiveStartKey=resp["LastEvaluatedKey"])
         items.extend(resp.get("Items", []))
+
+    items = [it for it in items if it.get("user_id") not in EXCLUDED_TEST_USER_IDS]
 
     total_sessions = len(items)
     total_programs_matched = 0

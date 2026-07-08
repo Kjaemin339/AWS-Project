@@ -42,15 +42,18 @@ export default function Dashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginBottom: '32px' }}>
               <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '28px' }}>
                 <div style={{ fontSize: '32px', fontWeight: 800 }}>{dashboardStats.total_programs_matched}건</div>
-                <div style={{ fontSize: '13px', color: '#9A9A9A', fontWeight: 600, marginTop: '6px' }}>누적 매칭 건수</div>
+                <div style={{ fontSize: '13px', color: '#9A9A9A', fontWeight: 600, marginTop: '6px' }}>누적 매칭된 공고 수</div>
+                <div style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '4px' }}>총 {dashboardStats.total_sessions}회 매칭 시도 기준</div>
               </div>
               <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '28px' }}>
                 <div style={{ fontSize: '32px', fontWeight: 800 }}>{formatWon(dashboardStats.total_expected_revenue)}</div>
                 <div style={{ fontSize: '13px', color: '#9A9A9A', fontWeight: 600, marginTop: '6px' }}>누적 예상 매출 영향</div>
+                <div style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '4px' }}>초안까지 생성한 세션만 포함</div>
               </div>
               <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '28px' }}>
                 <div style={{ fontSize: '32px', fontWeight: 800 }}>{dashboardStats.total_expected_jobs.toFixed(1)}명</div>
                 <div style={{ fontSize: '13px', color: '#9A9A9A', fontWeight: 600, marginTop: '6px' }}>누적 예상 고용창출 합계</div>
+                <div style={{ fontSize: '11px', color: '#B0B0B0', marginTop: '4px' }}>초안까지 생성한 세션만 포함</div>
               </div>
             </div>
 
