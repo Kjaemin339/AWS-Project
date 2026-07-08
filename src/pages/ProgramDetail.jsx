@@ -9,16 +9,11 @@ export default function ProgramDetail() {
   const { id } = useParams();
   const programId = decodeURIComponent(id);
   const navigate = useNavigate();
-  const { matchResult, draftState, draftError, draftResult, effectResult, generateDraft, goDashboardFromDetail } = useApp();
+  const { matchResult, draftState, draftError, draftResult, effectResult, generateDraft } = useApp();
 
   const program = (matchResult?.programs || []).find((p) => p.program_id === programId);
   const factual = draftResult?.factual_data;
   const dd = ddayInfo(daysUntil(program?.deadline));
-
-  function handleGoDashboard() {
-    goDashboardFromDetail();
-    navigate('/dashboard');
-  }
 
   if (!program) {
     return (
@@ -160,7 +155,7 @@ export default function ProgramDetail() {
             )}
 
             <div
-              onClick={handleGoDashboard}
+              onClick={() => navigate('/dashboard')}
               style={{ display: 'inline-block', fontSize: '14px', fontWeight: 700, color: '#171717', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '3px' }}
             >
               대시보드에서 자세히 보기 →

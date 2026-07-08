@@ -88,18 +88,6 @@ export const tabStyle = (active) => ({
   color: active ? '#171717' : '#6B6B6B',
 });
 
-export const announcementChipStyle = (selected) => ({
-  padding: '8px 14px',
-  borderRadius: '8px',
-  fontSize: '12px',
-  fontWeight: 600,
-  cursor: 'pointer',
-  transition: 'all 150ms',
-  border: '1px solid ' + (selected ? '#171717' : '#DDDDDD'),
-  background: selected ? '#171717' : '#fff',
-  color: selected ? '#fff' : '#5A5A5A',
-});
-
 export const submitButtonStyle = (submitting) => ({
   width: '100%',
   marginTop: '36px',

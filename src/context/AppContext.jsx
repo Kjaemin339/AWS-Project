@@ -55,8 +55,9 @@ export function AppProvider({ children }) {
     { from: 'assistant', text: '안녕하세요! 이 사업에 대한 지원자격이나 초안 수정 요청을 편하게 물어보세요.' },
   ]);
 
-  const [dashboardSelectedId, setDashboardSelectedId] = useState(null);
-  const [dashboardHighlightId, setDashboardHighlightId] = useState(null);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
 
   const [myPageTab, setMyPageTab] = useState('profile');
   const [savedToast, setSavedToast] = useState(false);
@@ -136,14 +137,17 @@ export function AppProvider({ children }) {
     }
   }
 
-  function goDashboardFromDetail() {
-    setDashboardHighlightId(selectedProgramId);
-    setDashboardSelectedId(selectedProgramId);
-  }
-
-  function selectDashboardAnnouncement(id) {
-    setDashboardSelectedId(id);
-    setDashboardHighlightId(null);
+  async function loadDashboardStats() {
+    setDashboardLoading(true);
+    setDashboardError('');
+    try {
+      const res = await apiPost('/dashboard', {}, idToken);
+      setDashboardStats(res);
+    } catch (e) {
+      setDashboardError(e.message || '대시보드 데이터를 불러오지 못했습니다');
+    } finally {
+      setDashboardLoading(false);
+    }
   }
 
   function toggleChatCollapse() {
@@ -239,10 +243,10 @@ export function AppProvider({ children }) {
     chatLoading,
     sendChatMessage,
 
-    dashboardSelectedId,
-    dashboardHighlightId,
-    goDashboardFromDetail,
-    selectDashboardAnnouncement,
+    dashboardStats,
+    dashboardLoading,
+    dashboardError,
+    loadDashboardStats,
 
     myPageTab,
     setMyPageTab,

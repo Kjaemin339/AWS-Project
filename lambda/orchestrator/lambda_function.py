@@ -709,6 +709,64 @@ def revise_draft(s3_key, user_id, revision_request):
 
 
 # ═══════════════════════════════════════════════════════════════
+# 도구 8: get_dashboard_stats (직접 함수 호출, 신규 /dashboard 라우트)
+# 스펙에 없던 신규 도구 — 대시보드 화면의 정적 목업 데이터를 실집계로 대체
+# ═══════════════════════════════════════════════════════════════
+
+def get_dashboard_stats():
+    """
+    전체 사용자의 매칭이력을 집계해 대시보드 지표를 산출.
+    현재 데이터 규모가 작아 Scan을 사용 (규모가 커지면 별도 집계 테이블/스트림 방식 검토 필요).
+    """
+    items = []
+    resp = history_table.scan()
+    items.extend(resp.get("Items", []))
+    while "LastEvaluatedKey" in resp:
+        resp = history_table.scan(ExclusiveStartKey=resp["LastEvaluatedKey"])
+        items.extend(resp.get("Items", []))
+
+    total_sessions = len(items)
+    total_programs_matched = 0
+    category_counts = {}
+    total_revenue = Decimal(0)
+    total_jobs = Decimal(0)
+    monthly_counts = {}
+
+    for it in items:
+        matched = it.get("matched_programs") or []
+        total_programs_matched += len(matched)
+        for p in matched:
+            cat = p.get("support_type_name") or "기타"
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+
+        effect = it.get("expected_effect")
+        if effect and not effect.get("error"):
+            total_revenue += Decimal(str(effect.get("expected_revenue_increase", 0) or 0))
+            total_jobs += Decimal(str(effect.get("expected_job_creation", 0) or 0))
+
+        ts = it.get("ts", "")
+        month = ts[:7] if len(ts) >= 7 else "미상"
+        monthly_counts[month] = monthly_counts.get(month, 0) + 1
+
+    category_total = sum(category_counts.values()) or 1
+    category_distribution = [
+        {"label": k, "count": v, "pct": round(v / category_total * 100, 1)}
+        for k, v in sorted(category_counts.items(), key=lambda x: -x[1])
+    ]
+
+    monthly_trend = [{"month": k, "count": v} for k, v in sorted(monthly_counts.items())][-6:]
+
+    return {
+        "total_sessions": total_sessions,
+        "total_programs_matched": total_programs_matched,
+        "total_expected_revenue": int(total_revenue),
+        "total_expected_jobs": float(total_jobs),
+        "category_distribution": category_distribution,
+        "monthly_trend": monthly_trend,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
 # 매칭이력 저장 (스펙 1-12: 세션 단위로 신규생성 후 UpdateItem 누적)
 # ═══════════════════════════════════════════════════════════════
 
@@ -945,6 +1003,9 @@ def lambda_handler(event, context):
                 else:
                     return _api_response(400, {"error": f"Unknown chat action: {action}"})
 
+            elif path == "/dashboard":
+                return _api_response(200, get_dashboard_stats())
+
             else:
                 return _api_response(404, {"error": f"Unknown path: {path}"})
 
@@ -969,5 +1030,7 @@ def lambda_handler(event, context):
         return explain_program(body.get("program_id", ""))
     elif action == "revise_draft":
         return revise_draft(body.get("s3_key", ""), body.get("user_id", ""), body.get("revision_request", ""))
+    elif action == "get_dashboard_stats":
+        return get_dashboard_stats()
     else:
         return {"error": f"Unknown action: {action}"}
