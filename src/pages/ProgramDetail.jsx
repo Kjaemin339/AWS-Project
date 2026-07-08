@@ -192,7 +192,32 @@ export default function ProgramDetail() {
               )}
             </div>
 
-            {effectResult && !effectResult.error && (
+            {effectResult && !effectResult.error && effectResult.effect_type === 'qualitative' && (
+              <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '28px', marginBottom: '36px' }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#171717',
+                    background: '#F2F2F2',
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    marginBottom: '14px',
+                  }}
+                >
+                  기대효과: {effectResult.benefit_category}
+                </span>
+                <p style={{ fontSize: '13px', color: '#6B6B6B', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-line', overflowWrap: 'break-word' }}>
+                  {effectResult.explanation}
+                </p>
+                <p style={{ fontSize: '11px', color: '#B0B0B0', margin: '14px 0 0' }}>
+                  이 사업은 현금 지원이 아닌 비금전적 지원(멘토링·컨설팅·네트워킹 등)이라 매출·고용 수치로 환산하지 않았습니다.
+                </p>
+              </div>
+            )}
+
+            {effectResult && !effectResult.error && effectResult.effect_type !== 'qualitative' && (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '20px' }}>
                   <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '20px', textAlign: 'center' }}>

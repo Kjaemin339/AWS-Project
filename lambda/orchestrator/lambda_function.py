@@ -9,6 +9,7 @@
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -124,6 +125,15 @@ def _sales_amount_label(code):
 def _location_text(profile):
     detail = profile.get("location_detail", "")
     return f"경상북도 {detail}" if detail else "경상북도"
+
+
+def _strip_html(text):
+    """마스터 테이블의 overview/support_content는 HTML(<p>, &nbsp; 등)이 섞여 있어 LLM에 넣기 전 정리"""
+    if not text:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+    return re.sub(r"\s+", " ", text).strip()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -566,10 +576,17 @@ def calc_expected_effect(program_id, profile):
     elif min_amt:
         support_amount = int(min_amt)
     else:
-        support_amount = _extract_amount_from_text(prog.get("support_scale", ""))
+        # 지원규모 필드가 비어있으면 사업개요·지원내용 본문 텍스트에서도 금액 언급을 찾아봄
+        combined_text = "\n".join(filter(None, [
+            prog.get("support_scale", ""),
+            _strip_html(prog.get("overview", "")),
+            _strip_html(prog.get("support_content", "")),
+        ]))
+        support_amount = _extract_amount_from_text(combined_text)
 
     if not support_amount:
-        return {"error": "지원금액 정보를 확인할 수 없습니다."}
+        # 멘토링·컨설팅·포상 등 애초에 금전적 지원이 아닌 사업 — 억지로 매출/고용 수치를 만들지 않음
+        return _estimate_qualitative_effect(prog, profile)
 
     user_induty = profile.get("induty", "제조업")
     params = INDUSTRY_PARAMS.get(user_induty, INDUSTRY_PARAMS["default"])
@@ -580,6 +597,7 @@ def calc_expected_effect(program_id, profile):
     payback_period = 1 / (params["revenue_multiplier"] * params["profit_rate"])
 
     result = {
+        "effect_type": "monetary",
         "program_id": program_id,
         "support_amount": support_amount,
         "expected_revenue_increase": int(expected_revenue),
@@ -615,6 +633,52 @@ def _extract_amount_from_text(text):
         return int("".join(c for c in result if c.isdigit()))
     except (ValueError, TypeError):
         return None
+
+
+def _estimate_qualitative_effect(prog, profile):
+    """
+    지원금액을 확인할 수 없는 사업(멘토링·네트워킹·컨설팅·인증·포상 등 비금전적 지원)에 대해,
+    매출/고용 수치를 억지로 만들지 않고 실제 지원 내용에 근거한 정성적 기대효과를 생성.
+    """
+    context_text = "\n".join(filter(None, [
+        _strip_html(prog.get("overview", "")),
+        _strip_html(prog.get("support_content", "")),
+    ])) or "(사업 설명 없음)"
+
+    prompt = f"""다음은 정부지원사업 공고입니다. 이 사업은 직접적인 지원금(현금) 대신 비금전적 지원(멘토링, 네트워킹, 컨설팅, 교육, 인증, 포상 등)을 제공하는 것으로 보입니다.
+
+사업명: {prog.get('title', '')}
+지원유형: {prog.get('support_type_name', '')}
+지원대상: {prog.get('support_target', '')}
+사업 내용: {context_text}
+
+기업 정보:
+- 업종: {profile.get('induty', '')}
+- 근로자수: {_employee_count_label(profile.get('employee_count_code', ''))}
+
+이 기업이 이 사업에 참여했을 때 실제로 얻을 수 있는 효과를 다음 형식으로만 답하세요.
+
+카테고리: (이 사업의 효과를 가장 잘 나타내는 3~6글자 표현. 예: 역량강화, 네트워킹, 기술지원, 신뢰도향상, 판로개척, 인증취득 등 사업 내용에 맞는 표현)
+설명: (3~4문장으로 구체적으로 서술)
+
+매출액·고용창출 등 숫자로 된 경제적 수치는 이 사업의 성격상 산출할 수 없으므로 절대 언급하거나 지어내지 마세요. 위에 주어진 사업 내용에 실제로 근거한 내용만 작성하고, 마크다운 문법은 쓰지 말고 순수 텍스트로만 작성하세요."""
+
+    raw = invoke_llm_with_guardrail(LLM_MODEL_ID, prompt, max_tokens=400, grounding_source=context_text)
+
+    category = "비금전적 지원"
+    explanation = raw.strip()
+    if "설명:" in raw:
+        head, explanation = raw.split("설명:", 1)
+        explanation = explanation.strip()
+        if "카테고리:" in head:
+            category = head.split("카테고리:", 1)[1].strip() or category
+
+    return {
+        "effect_type": "qualitative",
+        "program_id": prog.get("program_id", ""),
+        "benefit_category": category,
+        "explanation": explanation,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -739,7 +803,7 @@ def get_dashboard_stats():
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
         effect = it.get("expected_effect")
-        if effect and not effect.get("error"):
+        if effect and effect.get("effect_type") == "monetary":
             total_revenue += Decimal(str(effect.get("expected_revenue_increase", 0) or 0))
             total_jobs += Decimal(str(effect.get("expected_job_creation", 0) or 0))
 
