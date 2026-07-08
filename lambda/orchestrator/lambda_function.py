@@ -626,11 +626,26 @@ def calc_expected_effect(program_id, profile):
 def _extract_amount_from_text(text):
     if not text:
         return None
-    prompt = f"""다음 텍스트에서 지원금액(최대 기준)을 숫자(원 단위)로만 답하세요. 숫자만 출력하세요.
-텍스트: {text}"""
+    prompt = f"""다음은 정부지원사업 공고 텍스트입니다. 기업에 실제로 지급되는 지원금액(최대 기준)을 찾으세요.
+
+텍스트: {text}
+
+규칙:
+- "원", "만원", "억원" 등 금액 단위가 명확히 붙은 숫자만 지원금액으로 인정하세요.
+- 지원비율(%), 날짜, 전화번호, 기간(개월/년), 인원수 등은 지원금액이 아니니 절대 혼동하지 마세요.
+- 지원금액을 찾으면 원 단위 숫자만 출력하세요 (예: 15000000).
+- 지원금액을 찾을 수 없으면 "없음"이라고만 답하세요."""
     try:
         result = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=50)
-        return int("".join(c for c in result if c.isdigit()))
+        digits = "".join(c for c in result if c.isdigit())
+        if not digits:
+            return None
+        amount = int(digits)
+        # 정부지원사업 지원금은 통상 수백만원 이상 — 이보다 작으면
+        # 비율(%)·기간 등을 잘못 뽑은 오탐으로 간주하고 버림
+        if amount < 1000000:
+            return None
+        return amount
     except (ValueError, TypeError):
         return None
 

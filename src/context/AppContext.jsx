@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { apiPost } from '../api/client';
 import { useAuth } from './AuthContext';
 import { EMPLOYEE_COUNT_CODES, BUSINESS_AGE_CODES, SALES_AMOUNT_CODES, FIXED_AREA_CODE } from '../config';
@@ -17,6 +17,18 @@ const initialProfile = {
   bizRegNumber: '',
 };
 
+// 새로고침 시 입력한 프로필/매칭결과/초안이 사라지지 않도록 세션 상태를 localStorage에 보존
+const STORAGE_KEY = 'gbmatch_session';
+
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 function toApiProfile(profile) {
   return {
     area_code: FIXED_AREA_CODE,
@@ -32,20 +44,22 @@ function toApiProfile(profile) {
 }
 
 export function AppProvider({ children }) {
-  const { idToken } = useAuth();
+  const { idToken, isLoading: authLoading, isAuthenticated } = useAuth();
+  const persisted = loadPersisted();
 
-  const [profile, setProfile] = useState(initialProfile);
+  const [profile, setProfile] = useState(persisted.profile || initialProfile);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const [matchResult, setMatchResult] = useState(null); // /profile 응답의 matching
-  const [certResult, setCertResult] = useState(null); // /profile 응답의 certifications
-  const [sessionTs, setSessionTs] = useState(null); // 매칭이력 세션 키 (스펙 1-12)
+  const [matchResult, setMatchResult] = useState(persisted.matchResult || null); // /profile 응답의 matching
+  const [certResult, setCertResult] = useState(persisted.certResult || null); // /profile 응답의 certifications
+  const [sessionTs, setSessionTs] = useState(persisted.sessionTs || null); // 매칭이력 세션 키 (스펙 1-12)
 
-  const [selectedProgramId, setSelectedProgramId] = useState(null);
-  const [draftState, setDraftState] = useState('idle'); // idle | loading | done | error
-  const [draftResult, setDraftResult] = useState(null); // /draft 응답의 draft
-  const [effectResult, setEffectResult] = useState(null); // /draft 응답의 expected_effect
+  const [selectedProgramId, setSelectedProgramId] = useState(persisted.selectedProgramId || null);
+  // 'loading' 상태 그대로 저장돼 있으면 새로고침 후 영원히 스피너만 도니 idle로 되돌림
+  const [draftState, setDraftState] = useState(persisted.draftState === 'loading' ? 'idle' : persisted.draftState || 'idle'); // idle | loading | done | error
+  const [draftResult, setDraftResult] = useState(persisted.draftResult || null); // /draft 응답의 draft
+  const [effectResult, setEffectResult] = useState(persisted.effectResult || null); // /draft 응답의 expected_effect
   const [draftError, setDraftError] = useState('');
 
   const [chatCollapsed, setChatCollapsed] = useState(false);
@@ -212,6 +226,24 @@ export function AppProvider({ children }) {
     }
     setSelectedProgramId(programs[0]?.program_id || null);
   }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ profile, matchResult, certResult, sessionTs, selectedProgramId, draftState, draftResult, effectResult })
+      );
+    } catch {
+      // 저장 공간 부족 등은 무시 — 세션 유지가 안 될 뿐 기능에는 영향 없음
+    }
+  }, [profile, matchResult, certResult, sessionTs, selectedProgramId, draftState, draftResult, effectResult]);
+
+  // 로그아웃이 확정된 경우(로딩 중이 아니면서 미인증)에만 정리 — 다음 사용자에게 이전 세션이 안 보이게 함
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [authLoading, isAuthenticated]);
 
   const value = {
     profile,
