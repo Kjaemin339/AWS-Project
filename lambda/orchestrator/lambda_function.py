@@ -21,6 +21,8 @@ HISTORY_TABLE = os.environ.get("HISTORY_TABLE", "gbmatch-matching-history")
 DRAFTS_BUCKET = os.environ.get("DRAFTS_BUCKET", "gbmatch-drafts-973106207635")
 MOCK_MODE = os.environ.get("MOCK_MODE", "true").lower() == "true"
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-east-1")
+# Nova → Claude Haiku 4.5로 전환 (on-demand 직접 호출 불가, cross-region inference profile 경유 필요)
+LLM_MODEL_ID = os.environ.get("LLM_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 
 # ─── AWS 클라이언트 ───
 dynamodb = boto3.resource("dynamodb")
@@ -34,49 +36,35 @@ bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 # 공통 유틸
 # ═══════════════════════════════════════════════════════════════
 
-def invoke_nova(model_id, prompt, max_tokens=1024):
-    body = json.dumps({
-        "messages": [{"role": "user", "content": [{"text": prompt}]}],
-        "inferenceConfig": {"maxTokens": max_tokens}
-    })
-    resp = bedrock.invoke_model(
+def invoke_llm(model_id, prompt, max_tokens=1024):
+    """Bedrock Converse API 사용 — 모델 무관 통일 인터페이스 (Nova/Claude 등)"""
+    resp = bedrock.converse(
         modelId=model_id,
-        contentType="application/json",
-        accept="application/json",
-        body=body
+        messages=[{"role": "user", "content": [{"text": prompt}]}],
+        inferenceConfig={"maxTokens": max_tokens}
     )
-    result = json.loads(resp["body"].read())
-    return result["output"]["message"]["content"][0]["text"]
+    return resp["output"]["message"]["content"][0]["text"]
 
 
 GUARDRAIL_ID = os.environ.get("GUARDRAIL_ID", "lxw6zw9bsg6q")
 GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "1")
 
 
-def invoke_nova_with_guardrail(model_id, prompt, max_tokens=1024, grounding_source=""):
+def invoke_llm_with_guardrail(model_id, prompt, max_tokens=1024, grounding_source=""):
     """Guardrail의 contextual grounding으로 환각 체크하며 LLM 호출"""
-    body = json.dumps({
-        "messages": [
-            {"role": "user", "content": [
-                {"text": prompt},
-                {"guardContent": {"text": {"text": grounding_source, "qualifiers": ["grounding_source"]}}}
-            ]}
-        ],
-        "inferenceConfig": {"maxTokens": max_tokens}
-    })
     try:
-        resp = bedrock.invoke_model(
+        resp = bedrock.converse(
             modelId=model_id,
-            contentType="application/json",
-            accept="application/json",
-            body=body,
-            guardrailIdentifier=GUARDRAIL_ID,
-            guardrailVersion=GUARDRAIL_VERSION
+            messages=[{"role": "user", "content": [
+                {"guardContent": {"text": {"text": grounding_source, "qualifiers": ["grounding_source"]}}},
+                {"text": prompt}
+            ]}],
+            inferenceConfig={"maxTokens": max_tokens},
+            guardrailConfig={"guardrailIdentifier": GUARDRAIL_ID, "guardrailVersion": GUARDRAIL_VERSION}
         )
-        result = json.loads(resp["body"].read())
-        return result["output"]["message"]["content"][0]["text"]
+        return resp["output"]["message"]["content"][0]["text"]
     except Exception:
-        return invoke_nova(model_id, prompt, max_tokens)
+        return invoke_llm(model_id, prompt, max_tokens)
 
 
 def split_multi_value(field_value):
@@ -302,7 +290,7 @@ def _rerank_with_llm(profile, candidates):
 상위 10개 번호만 쉼표로 응답하세요 (예: 3,1,7,2,...). 설명 없이 번호만."""
 
     try:
-        result = invoke_nova("amazon.nova-lite-v1:0", prompt, max_tokens=64)
+        result = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=64)
         nums = [int(n.strip()) - 1 for n in result.split(",") if n.strip().isdigit()]
         reranked = [candidates[n] for n in nums if 0 <= n < len(candidates)]
         remaining = [c for c in candidates if c not in reranked]
@@ -331,9 +319,9 @@ def _generate_match_rationale(profile, programs):
 매칭된 사업:
 {prog_summaries}
 
-각 사업별로 1~2문장으로 매칭 근거를 작성하세요. 코드값을 사용하지 말고 한국어 텍스트로 작성하세요."""
+각 사업별로 1~2문장으로 매칭 근거를 작성하세요. 코드값을 사용하지 말고 한국어 텍스트로 작성하세요. 마크다운 문법(#, *, - 등)은 쓰지 말고 순수 텍스트로만 작성하세요."""
 
-    return invoke_nova("amazon.nova-pro-v1:0", prompt, max_tokens=512)
+    return invoke_llm(LLM_MODEL_ID, prompt, max_tokens=512)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -489,10 +477,10 @@ def generate_draft(program_id, user_id, profile, certifications=None):
 2. 신청 사유 (회사명을 명시하고, 이 기업의 업종·소재지·근로자수·업력·매출액 구간·보유 인증 중 지원사업과 관련 있는 요소를 구체적으로 언급하며 왜 적합한지 3~4문장으로 작성. 보유 인증이 있으면 반드시 언급)
 3. 기대효과 서술 (지원받으면 어떤 성과가 예상되는지, 2~3문장)
 
-일반적이고 뻔한 표현 대신 위 기업 정보의 구체적인 수치·항목을 실제로 인용하여 작성하세요. 전문적이고 간결한 한국어로 작성하세요."""
+일반적이고 뻔한 표현 대신 위 기업 정보의 구체적인 수치·항목을 실제로 인용하여 작성하세요. 전문적이고 간결한 한국어로 작성하세요. 마크다운 문법(#, ##, ** 등)은 쓰지 말고 순수 텍스트로만 작성하세요."""
 
-    narrative = invoke_nova_with_guardrail(
-        "amazon.nova-pro-v1:0", prompt, max_tokens=1024,
+    narrative = invoke_llm_with_guardrail(
+        LLM_MODEL_ID, prompt, max_tokens=1024,
         grounding_source=f"{factual_data['overview']}\n{factual_data['support_content']}\n{factual_data['support_target']}"
     )
 
@@ -610,9 +598,9 @@ def calc_expected_effect(program_id, profile):
 예상 순이익: {int(expected_profit):,}원/년
 회수기간: {round(payback_period, 2)}년
 
-3~4문장으로 간결하게 설명하세요. 회수기간은 업종 특성에 의한 비율 지표이며, 지원금액 규모에 따른 실질적 효과는 예상 순이익으로 판단해야 한다는 점을 언급하세요."""
+3~4문장으로 간결하게 설명하세요. 회수기간은 업종 특성에 의한 비율 지표이며, 지원금액 규모에 따른 실질적 효과는 예상 순이익으로 판단해야 한다는 점을 언급하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 작성하세요."""
 
-    result["explanation"] = invoke_nova("amazon.nova-pro-v1:0", explain_prompt, max_tokens=300)
+    result["explanation"] = invoke_llm(LLM_MODEL_ID, explain_prompt, max_tokens=300)
     return result
 
 
@@ -622,7 +610,7 @@ def _extract_amount_from_text(text):
     prompt = f"""다음 텍스트에서 지원금액(최대 기준)을 숫자(원 단위)로만 답하세요. 숫자만 출력하세요.
 텍스트: {text}"""
     try:
-        result = invoke_nova("amazon.nova-lite-v1:0", prompt, max_tokens=50)
+        result = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=50)
         return int("".join(c for c in result if c.isdigit()))
     except (ValueError, TypeError):
         return None
@@ -666,9 +654,9 @@ def explain_program(program_id):
 신청방법: {prog.get('apply_method', '')}
 문의처: {prog.get('contact_info', '')}
 
-핵심 요건, 주의사항, 신청 시 팁을 포함해서 설명하세요."""
+핵심 요건, 주의사항, 신청 시 팁을 포함해서 설명하세요. 마크다운 문법(#, ##, **, - 등)은 쓰지 말고 순수 텍스트로만 작성하세요."""
 
-    explanation = invoke_nova("amazon.nova-pro-v1:0", prompt, max_tokens=800)
+    explanation = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=800)
 
     return {
         "program_id": program_id,
@@ -699,9 +687,9 @@ def revise_draft(s3_key, user_id, revision_request):
 
 수정 요청: {revision_request}
 
-전체 초안을 수정 요청을 반영하여 다시 작성하세요. 기존의 사업 정보(사업명, 지원대상, 금액, 마감일, 링크 등)는 그대로 유지하고 서술 부분만 수정하세요."""
+전체 초안을 수정 요청을 반영하여 다시 작성하세요. 기존의 사업 정보(사업명, 지원대상, 금액, 마감일, 링크 등)는 그대로 유지하고 서술 부분만 수정하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 작성하세요."""
 
-    revised = invoke_nova("amazon.nova-pro-v1:0", prompt, max_tokens=1500)
+    revised = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=1500)
 
     new_key = s3_key.rsplit("/", 1)[0] + f"/revised_{now_iso().replace(':', '-')}.txt"
     s3.put_object(
@@ -871,7 +859,7 @@ def _route_chat_message(message):
 
 번호만 답하세요."""
     try:
-        result = invoke_nova("amazon.nova-lite-v1:0", prompt, max_tokens=5)
+        result = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=5)
         digits = "".join(c for c in result if c.isdigit())
         choice = digits[0] if digits else "4"
         return {"1": "explain_program", "2": "revise_draft", "3": "get_matched_programs"}.get(choice, "general")
@@ -891,13 +879,13 @@ def _general_chat_answer(message, program_id):
             )
 
     prompt = f"""당신은 정부지원사업 매칭 서비스 '기업맞손'의 상담 챗봇입니다.
-사용자 질문에 친절하고 간결하게(3문장 이내) 한국어로 답하세요.
+사용자 질문에 친절하고 간결하게(3문장 이내) 한국어로 답하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 답하세요.
 
 {context}
 
 사용자 질문: {message}"""
     try:
-        return invoke_nova("amazon.nova-pro-v1:0", prompt, max_tokens=400)
+        return invoke_llm(LLM_MODEL_ID, prompt, max_tokens=400)
     except Exception:
         return "죄송합니다, 지금은 답변을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."
 
