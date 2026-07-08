@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import ChatPanel from '../components/ChatPanel';
 import { useApp } from '../context/AppContext';
-import { ddayInfo, daysUntil, formatWon } from '../data/mockData';
+import { ddayInfo, daysUntil, formatWon, formatSupportAmount } from '../data/mockData';
 import { spinnerStyle } from '../components/formStyles';
 
 export default function ProgramDetail() {
@@ -61,7 +61,7 @@ export default function ProgramDetail() {
                 <div style={{ color: '#9A9A9A', fontWeight: 500 }}>지역요건</div>
                 <div style={{ fontWeight: 600 }}>{factual?.area_name || program.area_name || '-'}</div>
                 <div style={{ color: '#9A9A9A', fontWeight: 500 }}>지원금액</div>
-                <div style={{ fontWeight: 600 }}>{factual?.support_scale || formatWon(program.max_support_amount)}</div>
+                <div style={{ fontWeight: 600 }}>{factual?.support_scale || formatSupportAmount(program)}</div>
                 <div style={{ color: '#9A9A9A', fontWeight: 500 }}>마감일</div>
                 <div style={{ fontWeight: 600 }}>{program.deadline || '-'}</div>
               </div>

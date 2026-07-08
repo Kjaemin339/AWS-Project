@@ -29,6 +29,14 @@ export function formatWon(amount) {
   return n.toLocaleString('ko-KR') + '원';
 }
 
+// 공고민간연계 API 수집분은 max_support_amount가 0/미제공인 경우가 많아,
+// support_scale(지원규모 원문 텍스트)을 우선 사용하고 그마저 없으면 "0원" 대신 명확히 안내
+export function formatSupportAmount(program) {
+  if (program?.support_scale) return program.support_scale;
+  if (program?.max_support_amount) return formatWon(program.max_support_amount);
+  return '지원금액 정보 없음';
+}
+
 export function buildDraftText(program) {
   return (
     '1. 사업 개요\n' +

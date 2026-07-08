@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import { useApp } from '../context/AppContext';
-import { ddayInfo, daysUntil, formatWon } from '../data/mockData';
+import { ddayInfo, daysUntil, formatSupportAmount } from '../data/mockData';
 
 export default function Results() {
   const { matchResult, certResult, openProgram } = useApp();
@@ -124,7 +124,7 @@ export default function Results() {
                           {p.area_name || '경북'}
                         </span>
                         <span style={{ fontSize: '12px', color: '#9A9A9A', fontWeight: 600, background: '#F2F2F2', padding: '4px 10px', borderRadius: '6px' }}>
-                          {formatWon(p.max_support_amount)}
+                          {formatSupportAmount(p)}
                         </span>
                       </div>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>자세히 보기 →</span>

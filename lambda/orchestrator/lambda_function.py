@@ -231,7 +231,8 @@ def search_programs(profile):
                 "support_type_name": p.get("support_type_name", ""),
                 "area_name": p.get("area_name", ""),
                 "deadline": p.get("deadline", ""),
-                "max_support_amount": p.get("max_support_amount", 0)
+                "max_support_amount": int(p.get("max_support_amount") or 0),
+                "support_scale": p.get("support_scale", "")
             }
             for p in top_programs
         ],
@@ -630,7 +631,7 @@ def get_matched_programs(user_id):
     )
     return {
         "user_id": user_id,
-        "history": response.get("Items", []),
+        "history": [_decimals_to_native(item) for item in response.get("Items", [])],
         "count": response.get("Count", 0)
     }
 
@@ -778,6 +779,21 @@ def _floats_to_decimal(obj):
         return {k: _floats_to_decimal(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_floats_to_decimal(v) for v in obj]
+    return obj
+
+
+def _decimals_to_native(obj):
+    """
+    DynamoDB에서 읽어온 Decimal을 int/float로 되돌림.
+    안 그러면 json.dumps(default=str)가 Decimal(0)을 문자열 "0"으로 직렬화해서
+    JS 쪽에서 truthy한 값("0")으로 취급되는 버그가 생김 (예: 지원금액 0원 오표시).
+    """
+    if isinstance(obj, Decimal):
+        return int(obj) if obj % 1 == 0 else float(obj)
+    if isinstance(obj, dict):
+        return {k: _decimals_to_native(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_decimals_to_native(v) for v in obj]
     return obj
 
 
