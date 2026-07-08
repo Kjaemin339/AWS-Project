@@ -22,5 +22,16 @@ export const BUSINESS_AGE_CODES = {
   '20년 이상': 'OI06',
 };
 
-// 매칭 로직에서 area_code는 경북(4700) 고정 — 시군 입력은 표시용
+// 스펙 v2.4 6-1절: 매출액 구간 (선택 입력, 2단계 가산조건용) — 초안 프롬프트 보강에도 사용
+export const SALES_AMOUNT_CODES = {
+  '5억 미만': 'SI01',
+  '5~10억': 'SI02',
+  '10~20억': 'SI03',
+  '20~50억': 'SI04',
+  '50~100억': 'SI05',
+  '100~300억': 'SI06',
+  '300억 이상': 'SI07',
+};
+
+// 매칭 하드필터의 area_code는 경북(4700) 고정 — 시군 입력(location_detail)은 초안 프롬프트 등 표시/서술용
 export const FIXED_AREA_CODE = '4700';

@@ -1,17 +1,19 @@
 import { createContext, useContext, useState } from 'react';
 import { apiPost } from '../api/client';
 import { useAuth } from './AuthContext';
-import { EMPLOYEE_COUNT_CODES, BUSINESS_AGE_CODES, FIXED_AREA_CODE } from '../config';
+import { EMPLOYEE_COUNT_CODES, BUSINESS_AGE_CODES, SALES_AMOUNT_CODES, FIXED_AREA_CODE } from '../config';
 
 const AppContext = createContext(null);
 
 const initialProfile = {
+  companyName: '',
   industry: '',
   workerCount: '',
   locationDetail: '',
   years: '',
   preStartup: false,
   supportFields: [],
+  salesAmount: '',
   bizRegNumber: '',
 };
 
@@ -23,6 +25,9 @@ function toApiProfile(profile) {
     induty: profile.industry,
     preliminary_startup_yn: profile.preStartup ? 'Y' : 'N',
     desired_support: profile.supportFields.join(', '),
+    company_name: profile.companyName,
+    location_detail: profile.locationDetail,
+    sales_amount_code: SALES_AMOUNT_CODES[profile.salesAmount] || '',
   };
 }
 
@@ -114,7 +119,12 @@ export function AppProvider({ children }) {
     setDraftState('loading');
     setDraftError('');
     try {
-      const body = { program_id: selectedProgramId, profile: toApiProfile(profile), session_ts: sessionTs };
+      const body = {
+        program_id: selectedProgramId,
+        profile: toApiProfile(profile),
+        session_ts: sessionTs,
+        certifications: certResult?.certifications || null,
+      };
       const res = await apiPost('/draft', body, idToken);
       if (res.draft && res.draft.error) throw new Error(res.draft.error);
       setDraftResult(res.draft);

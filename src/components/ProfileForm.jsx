@@ -1,5 +1,5 @@
 import { useApp } from '../context/AppContext';
-import { INDUSTRIES, REGIONS, WORKER_COUNTS, YEARS_OPTIONS, SUPPORT_FIELDS } from '../data/mockData';
+import { INDUSTRIES, REGIONS, WORKER_COUNTS, YEARS_OPTIONS, SALES_AMOUNT_OPTIONS, SUPPORT_FIELDS } from '../data/mockData';
 import { chipStyle, radioStyle, dotOuterStyle, dotInnerStyle, preStartupBoxStyle } from './formStyles';
 
 export default function ProfileForm({ idSuffix = '' }) {
@@ -7,6 +7,25 @@ export default function ProfileForm({ idSuffix = '' }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      <div>
+        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>회사명</label>
+        <input
+          value={profile.companyName}
+          onChange={(e) => updateProfile('companyName', e.target.value)}
+          placeholder="예: 기업맞손 주식회사"
+          style={{
+            width: '100%',
+            padding: '12px 14px',
+            border: '1px solid #DDDDDD',
+            borderRadius: '10px',
+            fontSize: '14px',
+            background: '#fff',
+            color: '#171717',
+            fontFamily: 'inherit',
+          }}
+        />
+      </div>
+
       <div>
         <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>업종</label>
         <input
@@ -127,6 +146,30 @@ export default function ProfileForm({ idSuffix = '' }) {
               {label}
             </div>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>
+          매출액 구간{' '}
+          <span style={{ fontSize: '11px', color: '#9A9A9A', background: '#F2F2F2', padding: '2px 8px', borderRadius: '6px', fontWeight: 500 }}>
+            선택
+          </span>
+        </label>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {SALES_AMOUNT_OPTIONS.map((label) => {
+            const selected = profile.salesAmount === label;
+            return (
+              <div
+                key={label}
+                onClick={() => updateProfile('salesAmount', selected ? '' : label)}
+                style={radioStyle(selected)}
+              >
+                <div style={dotOuterStyle(selected)}>{selected && <div style={dotInnerStyle} />}</div>
+                <span>{label}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

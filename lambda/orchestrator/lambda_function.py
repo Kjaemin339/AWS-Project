@@ -117,6 +117,27 @@ def _business_age_label(code):
     return BUSINESS_AGE_LABELS.get(code, code)
 
 
+# 스펙 v2.4 6-1절: 매출액 구간(선택 입력) 코드값 → 라벨
+SALES_AMOUNT_LABELS = {
+    "SI01": "5억 미만",
+    "SI02": "5~10억",
+    "SI03": "10~20억",
+    "SI04": "20~50억",
+    "SI05": "50~100억",
+    "SI06": "100~300억",
+    "SI07": "300억 이상",
+}
+
+
+def _sales_amount_label(code):
+    return SALES_AMOUNT_LABELS.get(code, code)
+
+
+def _location_text(profile):
+    detail = profile.get("location_detail", "")
+    return f"경상북도 {detail}" if detail else "경상북도"
+
+
 # ═══════════════════════════════════════════════════════════════
 # 도구 1: search_programs (직접 함수 호출)
 # ═══════════════════════════════════════════════════════════════
@@ -299,7 +320,7 @@ def _generate_match_rationale(profile, programs):
 
 기업 프로필:
 - 업종: {profile.get('induty', '')}
-- 소재지: 경상북도
+- 소재지: {_location_text(profile)}
 - 근로자수 구간: {_employee_count_label(profile.get('employee_count_code', ''))}
 - 업력 구간: {_business_age_label(profile.get('business_age_code', ''))}
 - 희망 지원분야: {profile.get('desired_support', '')}
@@ -413,7 +434,7 @@ def _verify_real(bizno, cert_codes):
 # 도구 3: generate_draft (직접 함수 호출)
 # ═══════════════════════════════════════════════════════════════
 
-def generate_draft(program_id, user_id, profile):
+def generate_draft(program_id, user_id, profile, certifications=None):
     """
     지원서 초안 생성.
     수치/링크는 마스터 테이블에서 그대로 삽입, LLM은 서술만 생성.
@@ -435,14 +456,22 @@ def generate_draft(program_id, user_id, profile):
         "overview": prog.get("overview", "")
     }
 
+    company_name = profile.get("company_name", "") or "(회사명 미입력)"
+    sales_amount = _sales_amount_label(profile.get("sales_amount_code", ""))
+    held_certs = [c.get("cert_name") for c in (certifications or []) if c.get("has_certification")]
+    cert_text = ", ".join(held_certs) if held_certs else "없음"
+
     prompt = f"""다음 기업과 지원사업 정보를 바탕으로 지원서 초안의 서술 부분을 작성하세요.
 
 기업 정보:
+- 회사명: {company_name}
 - 업종: {profile.get('induty', '')}
-- 소재지: 경상북도
+- 소재지: {_location_text(profile)}
 - 근로자수: {_employee_count_label(profile.get('employee_count_code', ''))}
 - 업력: {_business_age_label(profile.get('business_age_code', ''))}
+- 매출액 구간: {sales_amount or '미입력'}
 - 희망분야: {profile.get('desired_support', '')}
+- 보유 인증: {cert_text}
 
 사업 정보:
 - 사업명: {factual_data['title']}
@@ -452,10 +481,10 @@ def generate_draft(program_id, user_id, profile):
 
 다음 3개 섹션을 작성하세요:
 1. 사업 개요 (2~3문장)
-2. 신청 사유 (기업이 왜 이 사업에 적합한지, 3~4문장)
+2. 신청 사유 (회사명을 명시하고, 이 기업의 업종·소재지·근로자수·업력·매출액 구간·보유 인증 중 지원사업과 관련 있는 요소를 구체적으로 언급하며 왜 적합한지 3~4문장으로 작성. 보유 인증이 있으면 반드시 언급)
 3. 기대효과 서술 (지원받으면 어떤 성과가 예상되는지, 2~3문장)
 
-전문적이고 간결하게 한국어로 작성하세요."""
+일반적이고 뻔한 표현 대신 위 기업 정보의 구체적인 수치·항목을 실제로 인용하여 작성하세요. 전문적이고 간결한 한국어로 작성하세요."""
 
     narrative = invoke_nova_with_guardrail(
         "amazon.nova-pro-v1:0", prompt, max_tokens=1024,
@@ -854,9 +883,10 @@ def lambda_handler(event, context):
                 program_id = body.get("program_id", "")
                 profile = body.get("profile", {})
                 session_ts = body.get("session_ts", "")
+                certifications = body.get("certifications")
                 effective_user_id = user_id or body.get("user_id", "")
 
-                draft_result = generate_draft(program_id, effective_user_id, profile)
+                draft_result = generate_draft(program_id, effective_user_id, profile, certifications)
                 effect_result = calc_expected_effect(program_id, profile)
 
                 if effective_user_id and session_ts and not draft_result.get("error"):
@@ -930,7 +960,7 @@ def lambda_handler(event, context):
     elif action == "verify_certifications":
         return verify_certifications(body.get("bizno", ""))
     elif action == "generate_draft":
-        return generate_draft(body.get("program_id", ""), body.get("user_id", ""), body.get("profile", {}))
+        return generate_draft(body.get("program_id", ""), body.get("user_id", ""), body.get("profile", {}), body.get("certifications"))
     elif action == "calc_expected_effect":
         return calc_expected_effect(body.get("program_id", ""), body.get("profile", {}))
     elif action == "get_matched_programs":
