@@ -454,7 +454,9 @@ def generate_draft(program_id, user_id, profile, certifications=None):
         "detail_page_url": prog.get("detail_page_url", ""),
         "contact_info": prog.get("contact_info", ""),
         "support_content": prog.get("support_content", ""),
-        "overview": prog.get("overview", "")
+        "overview": prog.get("overview", ""),
+        "attachment_url": prog.get("attachment_url", ""),
+        "attachment_name": prog.get("attachment_name", "")
     }
 
     company_name = profile.get("company_name", "") or "(회사명 미입력)"
@@ -498,6 +500,11 @@ def generate_draft(program_id, user_id, profile, certifications=None):
     elif factual_data["detail_page_url"]:
         apply_link_text = f"\n\n공고 상세페이지: {factual_data['detail_page_url']}"
 
+    attachment_line = ""
+    if factual_data["attachment_name"]:
+        names = [n.strip() for n in factual_data["attachment_name"].split("@") if n.strip()]
+        attachment_line = "\n  - 첨부파일: " + ", ".join(names)
+
     draft_content = f"""═══════════════════════════════════════
 지원서 초안 — {factual_data['title']}
 ═══════════════════════════════════════
@@ -508,7 +515,7 @@ def generate_draft(program_id, user_id, profile, certifications=None):
   - 지원규모: {factual_data['support_scale']}
   - 지역: {factual_data['area_name']}
   - 마감일: {factual_data['deadline']}
-  - 문의처: {factual_data['contact_info']}
+  - 문의처: {factual_data['contact_info']}{attachment_line}
 
 ■ 서술 내용
 {narrative}
