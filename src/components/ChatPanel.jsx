@@ -3,7 +3,34 @@ import { spinnerStyle } from './formStyles';
 
 export default function ChatPanel() {
   const { chatCollapsed, toggleChatCollapse, chatMessages, chatInput, setChatInput, chatLoading, sendChatMessage } = useApp();
-  const expanded = !chatCollapsed;
+
+  if (chatCollapsed) {
+    return (
+      <div
+        onClick={toggleChatCollapse}
+        style={{
+          width: '56px',
+          minWidth: '56px',
+          borderLeft: '1px solid #ECECEC',
+          height: 'calc(100vh - 64px)',
+          position: 'sticky',
+          top: '64px',
+          background: '#FBFBFB',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          paddingTop: '20px',
+          gap: '14px',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: '14px', color: '#9A9A9A', fontWeight: 700 }}>‹</span>
+        <span style={{ writingMode: 'vertical-rl', fontSize: '13px', fontWeight: 700, letterSpacing: '0.04em', color: '#171717' }}>
+          AI 상담
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -30,92 +57,88 @@ export default function ChatPanel() {
       >
         <div>
           <div style={{ fontSize: '14px', fontWeight: 700 }}>AI 상담</div>
-          {expanded && <div style={{ fontSize: '11px', color: '#9A9A9A', marginTop: '2px' }}>자격 문의 · 초안 수정 요청</div>}
+          <div style={{ fontSize: '11px', color: '#9A9A9A', marginTop: '2px' }}>자격 문의 · 초안 수정 요청</div>
         </div>
         <span onClick={toggleChatCollapse} style={{ fontSize: '12px', color: '#9A9A9A', cursor: 'pointer', fontWeight: 600 }}>
-          {chatCollapsed ? '펼치기' : '접기'}
+          접기
         </span>
       </div>
 
-      {expanded && (
-        <>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {chatMessages.map((m, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: m.from === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div
-                  style={{
-                    maxWidth: '80%',
-                    background: m.from === 'user' ? '#171717' : '#F0F0F0',
-                    color: m.from === 'user' ? '#fff' : '#333333',
-                    padding: '10px 14px',
-                    borderRadius: '14px',
-                    fontSize: '13px',
-                    lineHeight: 1.7,
-                    whiteSpace: 'pre-line',
-                    overflowWrap: 'break-word',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {m.text}
-                </div>
-              </div>
-            ))}
-            {chatLoading && (
-              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <div style={{ background: '#F0F0F0', padding: '10px 14px', borderRadius: '14px', display: 'flex', alignItems: 'center' }}>
-                  <span style={spinnerStyle('12px', '#DDDDDD', '#171717')} />
-                </div>
-              </div>
-            )}
-          </div>
-          <div style={{ padding: '16px 20px', borderTop: '1px solid #ECECEC', display: 'flex', gap: '8px' }}>
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
-              placeholder="자격요건이나 초안 수정에 대해 물어보세요"
-              disabled={chatLoading}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {chatMessages.map((m, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: m.from === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div
               style={{
-                flex: 1,
-                minWidth: 0,
-                padding: '10px 12px',
-                border: '1px solid #DDDDDD',
-                borderRadius: '10px',
+                maxWidth: '80%',
+                background: m.from === 'user' ? '#171717' : '#F0F0F0',
+                color: m.from === 'user' ? '#fff' : '#333333',
+                padding: '10px 14px',
+                borderRadius: '14px',
                 fontSize: '13px',
-                fontFamily: 'inherit',
-              }}
-            />
-            <button
-              onClick={sendChatMessage}
-              disabled={chatLoading}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: '#171717',
-                border: 'none',
-                cursor: chatLoading ? 'default' : 'pointer',
-                opacity: chatLoading ? 0.6 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                lineHeight: 1.7,
+                whiteSpace: 'pre-line',
+                overflowWrap: 'break-word',
+                wordBreak: 'break-word',
               }}
             >
-              <div
-                style={{
-                  width: 0,
-                  height: 0,
-                  borderTop: '5px solid transparent',
-                  borderBottom: '5px solid transparent',
-                  borderLeft: '8px solid #fff',
-                  marginLeft: '2px',
-                }}
-              />
-            </button>
+              {m.text}
+            </div>
           </div>
-        </>
-      )}
+        ))}
+        {chatLoading && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <div style={{ background: '#F0F0F0', padding: '10px 14px', borderRadius: '14px', display: 'flex', alignItems: 'center' }}>
+              <span style={spinnerStyle('12px', '#DDDDDD', '#171717')} />
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: '16px 20px', borderTop: '1px solid #ECECEC', display: 'flex', gap: '8px' }}>
+        <input
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+          placeholder="자격요건이나 초안 수정에 대해 물어보세요"
+          disabled={chatLoading}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: '10px 12px',
+            border: '1px solid #DDDDDD',
+            borderRadius: '10px',
+            fontSize: '13px',
+            fontFamily: 'inherit',
+          }}
+        />
+        <button
+          onClick={sendChatMessage}
+          disabled={chatLoading}
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: '#171717',
+            border: 'none',
+            cursor: chatLoading ? 'default' : 'pointer',
+            opacity: chatLoading ? 0.6 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 0,
+              height: 0,
+              borderTop: '5px solid transparent',
+              borderBottom: '5px solid transparent',
+              borderLeft: '8px solid #fff',
+              marginLeft: '2px',
+            }}
+          />
+        </button>
+      </div>
     </div>
   );
 }
