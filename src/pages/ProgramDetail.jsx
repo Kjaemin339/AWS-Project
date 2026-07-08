@@ -15,10 +15,13 @@ export default function ProgramDetail() {
   const factual = draftResult?.factual_data;
   const dd = ddayInfo(daysUntil(program?.deadline));
 
+  // 초안 생성 전에는 매칭 결과 요약(program)에, 생성 후에는 마스터 테이블 재조회값(factual)에 실림
+  const attachmentUrl = factual?.attachment_url || program?.attachment_url || '';
+  const attachmentName = factual?.attachment_name || program?.attachment_name || '';
   // 원본 API가 첨부파일이 여러 개일 때 "@"로 이어붙여서 내려줌
-  const attachments = (factual?.attachment_url ? factual.attachment_url.split('@') : []).map((url, i) => ({
+  const attachments = (attachmentUrl ? attachmentUrl.split('@') : []).map((url, i) => ({
     url,
-    name: (factual.attachment_name || '').split('@')[i] || `첨부파일 ${i + 1}`,
+    name: attachmentName.split('@')[i] || `첨부파일 ${i + 1}`,
   }));
 
   if (!program) {
@@ -72,6 +75,28 @@ export default function ProgramDetail() {
                 <div style={{ fontWeight: 600 }}>{program.deadline || '-'}</div>
               </div>
             </div>
+
+            {attachments.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '24px', marginBottom: '36px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px' }}>공고 첨부파일</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {attachments.map((a) => (
+                    <a
+                      key={a.url}
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: '13px', color: '#171717', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: '3px', wordBreak: 'break-all' }}
+                    >
+                      {a.name}
+                    </a>
+                  ))}
+                </div>
+                <p style={{ fontSize: '11px', color: '#9A9A9A', margin: '14px 0 0' }}>
+                  기업마당(bizinfo.go.kr) 원본 첨부파일로 연결됩니다.
+                </p>
+              </div>
+            )}
 
             <div style={{ marginBottom: '36px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
@@ -130,28 +155,6 @@ export default function ProgramDetail() {
                     <span style={{ fontSize: '12px', color: '#9A9A9A' }}>표시된 숫자는 마스터 테이블 재조회 값입니다.</span>
                     <span style={{ fontSize: '11px', color: '#9A9A9A' }}>저장 위치: {draftResult.s3_key}</span>
                   </div>
-                </div>
-              )}
-
-              {draftState === 'done' && attachments.length > 0 && (
-                <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '24px', marginTop: '16px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '14px' }}>공고 첨부파일</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {attachments.map((a) => (
-                      <a
-                        key={a.url}
-                        href={a.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: '13px', color: '#171717', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: '3px', wordBreak: 'break-all' }}
-                      >
-                        {a.name}
-                      </a>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: '11px', color: '#9A9A9A', margin: '14px 0 0' }}>
-                    기업마당(bizinfo.go.kr) 원본 첨부파일로 연결됩니다.
-                  </p>
                 </div>
               )}
             </div>

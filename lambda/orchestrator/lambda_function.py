@@ -232,7 +232,9 @@ def search_programs(profile):
                 "area_name": p.get("area_name", ""),
                 "deadline": p.get("deadline", ""),
                 "max_support_amount": int(p.get("max_support_amount") or 0),
-                "support_scale": p.get("support_scale", "")
+                "support_scale": p.get("support_scale", ""),
+                "attachment_url": p.get("attachment_url", ""),
+                "attachment_name": p.get("attachment_name", "")
             }
             for p in top_programs
         ],
