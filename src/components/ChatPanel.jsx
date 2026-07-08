@@ -50,7 +50,10 @@ export default function ChatPanel() {
                     padding: '10px 14px',
                     borderRadius: '14px',
                     fontSize: '13px',
-                    lineHeight: 1.5,
+                    lineHeight: 1.7,
+                    whiteSpace: 'pre-line',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {m.text}

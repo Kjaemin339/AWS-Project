@@ -139,7 +139,40 @@ export default function ProgramDetail() {
 
               {draftState === 'done' && draftResult && (
                 <div style={{ background: '#fff', border: '1px solid #ECECEC', borderRadius: '16px', padding: '32px' }}>
-                  <div style={{ fontSize: '13px', lineHeight: 1.9, color: '#333', whiteSpace: 'pre-line', fontFamily: 'monospace' }}>{draftResult.draft_content}</div>
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      lineHeight: 2,
+                      color: '#333',
+                      whiteSpace: 'pre-line',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {draftResult.narrative || draftResult.draft_content}
+                  </div>
+
+                  {(factual?.apply_url || factual?.detail_page_url) && (
+                    <a
+                      href={factual.apply_url || factual.detail_page_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-block',
+                        marginTop: '24px',
+                        background: '#171717',
+                        color: '#fff',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      {factual.apply_url ? '온라인 신청 바로가기 →' : '공고 상세페이지 →'}
+                    </a>
+                  )}
+
                   <div
                     style={{
                       display: 'flex',
@@ -153,7 +186,7 @@ export default function ProgramDetail() {
                     }}
                   >
                     <span style={{ fontSize: '12px', color: '#9A9A9A' }}>표시된 숫자는 마스터 테이블 재조회 값입니다.</span>
-                    <span style={{ fontSize: '11px', color: '#9A9A9A' }}>저장 위치: {draftResult.s3_key}</span>
+                    <span style={{ fontSize: '11px', color: '#9A9A9A', wordBreak: 'break-all' }}>저장 위치: {draftResult.s3_key}</span>
                   </div>
                 </div>
               )}

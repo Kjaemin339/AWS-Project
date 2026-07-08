@@ -477,7 +477,7 @@ def generate_draft(program_id, user_id, profile, certifications=None):
 2. 신청 사유 (회사명을 명시하고, 이 기업의 업종·소재지·근로자수·업력·매출액 구간·보유 인증 중 지원사업과 관련 있는 요소를 구체적으로 언급하며 왜 적합한지 3~4문장으로 작성. 보유 인증이 있으면 반드시 언급)
 3. 기대효과 서술 (지원받으면 어떤 성과가 예상되는지, 2~3문장)
 
-일반적이고 뻔한 표현 대신 위 기업 정보의 구체적인 수치·항목을 실제로 인용하여 작성하세요. 전문적이고 간결한 한국어로 작성하세요. 마크다운 문법(#, ##, ** 등)은 쓰지 말고 순수 텍스트로만 작성하세요."""
+일반적이고 뻔한 표현 대신 위 기업 정보의 구체적인 수치·항목을 실제로 인용하여 작성하세요. 전문적이고 간결한 한국어로 작성하세요. 마크다운 문법(#, ##, ** 등)은 쓰지 말고 순수 텍스트로만 작성하세요. 각 섹션 제목은 "1. 사업 개요"처럼 숫자와 마침표로 시작하고, 섹션 사이는 빈 줄로 구분하세요."""
 
     narrative = invoke_llm_with_guardrail(
         LLM_MODEL_ID, prompt, max_tokens=1024,
@@ -528,6 +528,7 @@ def generate_draft(program_id, user_id, profile, certifications=None):
     return {
         "program_id": program_id,
         "draft_content": draft_content,
+        "narrative": narrative,
         "s3_key": s3_key,
         "factual_data": factual_data
     }
@@ -654,7 +655,7 @@ def explain_program(program_id):
 신청방법: {prog.get('apply_method', '')}
 문의처: {prog.get('contact_info', '')}
 
-핵심 요건, 주의사항, 신청 시 팁을 포함해서 설명하세요. 마크다운 문법(#, ##, **, - 등)은 쓰지 말고 순수 텍스트로만 작성하세요."""
+핵심 요건, 주의사항, 신청 시 팁을 포함해서 설명하세요. 마크다운 문법(#, ##, **, - 등)은 쓰지 말고 순수 텍스트로만 작성하세요. 주제가 바뀔 때마다 빈 줄로 문단을 구분하고, 나열할 항목이 있으면 "1. ", "2. "처럼 번호를 붙여 항목마다 줄을 바꿔서 작성하세요."""
 
     explanation = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=800)
 
@@ -687,7 +688,7 @@ def revise_draft(s3_key, user_id, revision_request):
 
 수정 요청: {revision_request}
 
-전체 초안을 수정 요청을 반영하여 다시 작성하세요. 기존의 사업 정보(사업명, 지원대상, 금액, 마감일, 링크 등)는 그대로 유지하고 서술 부분만 수정하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 작성하세요."""
+전체 초안을 수정 요청을 반영하여 다시 작성하세요. 기존의 사업 정보(사업명, 지원대상, 금액, 마감일, 링크 등)는 그대로 유지하고 서술 부분만 수정하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 작성하세요. 원본과 같이 섹션 사이는 빈 줄로 구분하세요."""
 
     revised = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=1500)
 
@@ -879,7 +880,7 @@ def _general_chat_answer(message, program_id):
             )
 
     prompt = f"""당신은 정부지원사업 매칭 서비스 '기업맞손'의 상담 챗봇입니다.
-사용자 질문에 친절하고 간결하게(3문장 이내) 한국어로 답하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 답하세요.
+사용자 질문에 친절하고 간결하게(3문장 이내) 한국어로 답하세요. 마크다운 문법은 쓰지 말고 순수 텍스트로만 답하세요. 나열할 항목이 있으면 항목마다 줄을 바꿔서 작성하세요.
 
 {context}
 
