@@ -717,14 +717,19 @@ def get_matched_programs(user_id):
 # 도구 6: explain_program (Agent 도구)
 # ═══════════════════════════════════════════════════════════════
 
-def explain_program(program_id):
+def explain_program(program_id, user_question=""):
     prog = programs_table.get_item(Key={"program_id": program_id}).get("Item")
     if not prog:
         return {"error": f"program_id '{program_id}' not found"}
 
-    prompt = f"""다음 지원사업 정보를 기업 담당자가 이해하기 쉽게 상세히 설명하세요.
+    if user_question:
+        task = f'다음 지원사업 정보를 바탕으로 기업 담당자의 질문에 직접적으로 답하세요.\n\n질문: "{user_question}"\n\n'
+        length_rule = "질문에 필요한 내용 위주로 답하세요. 질문과 무관한 정보까지 전부 나열하지 말고, 실제로 물어본 것에 집중해서 간결하게 작성하세요."
+    else:
+        task = "다음 지원사업 정보를 기업 담당자가 이해하기 쉽게 상세히 설명하세요.\n\n"
+        length_rule = "핵심 요건, 주의사항, 신청 시 팁을 포함해서 설명하세요."
 
-사업명: {prog.get('title', '')}
+    prompt = f"""{task}사업명: {prog.get('title', '')}
 사업개요: {prog.get('overview', '')}
 지원내용: {prog.get('support_content', '')}
 지원대상: {prog.get('support_target', '')}
@@ -734,7 +739,7 @@ def explain_program(program_id):
 신청방법: {prog.get('apply_method', '')}
 문의처: {prog.get('contact_info', '')}
 
-핵심 요건, 주의사항, 신청 시 팁을 포함해서 설명하세요. 마크다운 문법(#, ##, **, - 등)은 쓰지 말고 순수 텍스트로만 작성하세요. 주제가 바뀔 때마다 빈 줄로 문단을 구분하고, 나열할 항목이 있으면 "1. ", "2. "처럼 번호를 붙여 항목마다 줄을 바꿔서 작성하세요."""
+{length_rule} 마크다운 문법(#, ##, **, - 등)은 쓰지 말고 순수 텍스트로만 작성하세요. 주제가 바뀔 때마다 빈 줄로 문단을 구분하고, 나열할 항목이 있으면 "1. ", "2. "처럼 번호를 붙여 항목마다 줄을 바꿔서 작성하세요."""
 
     explanation = invoke_llm(LLM_MODEL_ID, prompt, max_tokens=800)
 
@@ -1083,7 +1088,7 @@ def lambda_handler(event, context):
                     return _api_response(200, res)
 
                 elif action == "explain_program":
-                    res = explain_program(program_id or body.get("program_id", ""))
+                    res = explain_program(program_id or body.get("program_id", ""), message)
                     res["reply"] = res.get("explanation") or res.get("error", "설명을 가져오지 못했습니다.")
                     return _api_response(200, res)
 
